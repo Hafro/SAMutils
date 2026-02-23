@@ -1,0 +1,343 @@
+---
+title: "SAM Dashboard"
+format:
+  dashboard:
+    orientation: rows
+    scrolling: true
+    embed-resources: true
+params:
+  bundle_path: ""
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+library(SAMutils)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(knitr)
+
+bundle <- readRDS(params$bundle_path)
+
+safe_plot <- function(expr, label = "Plot unavailable") {
+  tryCatch(
+    {
+      p <- eval(expr)
+      if (inherits(p, c("gg", "ggplot", "patchwork"))) {
+        print(p)
+      }
+      invisible(NULL)
+    },
+    error = function(e) {
+      print(
+        ggplot() +
+          annotate("text", x = 0, y = 0, label = label) +
+          theme_void()
+      )
+      invisible(NULL)
+    }
+  )
+}
+
+safe_table <- function(x, max_rows = 200L, label = "No data") {
+  if (is.null(x)) {
+    return(data.frame(message = label))
+  }
+  x_df <- as.data.frame(x)
+  if (nrow(x_df) == 0) {
+    return(data.frame(message = label))
+  }
+  utils::head(x_df, max_rows)
+}
+
+render_table <- function(x, max_rows = 200L, label = "No data") {
+  knitr::kable(
+    safe_table(x, max_rows = max_rows, label = label),
+    format = "html"
+  )
+}
+
+render_conf_panel <- function(fit_obj) {
+  conf_txt <- try(
+    capture.output(stockassessment::saveConf(fit_obj$conf, file = "")),
+    silent = TRUE
+  )
+  if (inherits(conf_txt, "try-error") || length(conf_txt) == 0) {
+    conf_txt <- "Configuration unavailable."
+  }
+
+  conf_html <- paste(conf_txt, collapse = "\n")
+  conf_html <- htmltools::htmlEscape(conf_html)
+  cat(
+    paste0(
+      "<div style='border:1px solid #d9d9d9;border-radius:8px;background:#fafafa;",
+      "padding:12px;max-height:520px;overflow:auto;'>",
+      "<pre style='margin:0;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;",
+      "font-size:12px;line-height:1.35;'>",
+      conf_html,
+      "</pre></div>"
+    )
+  )
+}
+```
+
+# Overview
+
+### Model Summary
+
+```{r}
+fit_obj <- bundle$res$fit
+yr <- suppressWarnings(as.numeric(rownames(fit_obj$data$stockMeanWeight)))
+age <- suppressWarnings(as.numeric(colnames(fit_obj$data$stockMeanWeight)))
+
+summary_tbl <- data.frame(
+  item = c(
+    "Model name",
+    "Years",
+    "Ages",
+    "Fleets",
+    "Surveys",
+    "Recruitment model code"
+  ),
+  value = c(
+    "SAM fit",
+    paste0(min(yr, na.rm = TRUE), "-", max(yr, na.rm = TRUE)),
+    paste0(min(age, na.rm = TRUE), "-", max(age, na.rm = TRUE)),
+    nrow(fit_obj$conf$keyLogFpar),
+    nrow(fit_obj$conf$keyVarObs) - 1,
+    fit_obj$conf$stockRecruitmentModelCode
+  ),
+  stringsAsFactors = FALSE
+)
+render_table(summary_tbl, max_rows = 20)
+```
+
+### Configuration (`saveConf`)
+
+```{r}
+#| results: asis
+render_conf_panel(bundle$res$fit)
+```
+
+# Input Data
+
+## Tables {.tabset}
+
+### Stock mean weight
+
+```{r}
+render_table(
+  bundle$input_tables$stockMeanWeight,
+  max_rows = 500,
+  label = "stockMeanWeight unavailable"
+)
+```
+
+### Catch mean weight
+
+```{r}
+render_table(
+  bundle$input_tables$catchMeanWeight,
+  max_rows = 500,
+  label = "catchMeanWeight unavailable"
+)
+```
+
+### Natural mortality
+
+```{r}
+render_table(
+  bundle$input_tables$natMor,
+  max_rows = 500,
+  label = "natMor unavailable"
+)
+```
+
+### Proportion mature
+
+```{r}
+render_table(
+  bundle$input_tables$propMat,
+  max_rows = 500,
+  label = "propMat unavailable"
+)
+```
+
+### Proportion fished
+
+```{r}
+render_table(
+  bundle$input_tables$propF,
+  max_rows = 500,
+  label = "propF unavailable"
+)
+```
+
+### Proportion natural mortality
+
+```{r}
+render_table(
+  bundle$input_tables$propM,
+  max_rows = 500,
+  label = "propM unavailable"
+)
+```
+
+### Landed fraction
+
+```{r}
+render_table(
+  bundle$input_tables$landFrac,
+  max_rows = 500,
+  label = "landFrac unavailable"
+)
+```
+
+### Discard mean weight
+
+```{r}
+render_table(
+  bundle$input_tables$disMeanWeight,
+  max_rows = 500,
+  label = "disMeanWeight unavailable"
+)
+```
+
+### Landed mean weight
+
+```{r}
+render_table(
+  bundle$input_tables$landMeanWeight,
+  max_rows = 500,
+  label = "landMeanWeight unavailable"
+)
+```
+
+# Model Fit
+
+### Observation Residuals
+
+```{r}
+safe_plot(
+  quote(model_resid_plot(bundle$res)),
+  "Observation residuals unavailable"
+)
+```
+
+### Process Residuals
+
+```{r}
+safe_plot(
+  quote(model_pres_resid_plot(bundle$res)),
+  "Process residuals unavailable"
+)
+```
+
+### Combined Fit
+
+```{r}
+safe_plot(
+  quote(model_combfit(bundle$res, bundle$model_dat)),
+  "Combined fit unavailable"
+)
+```
+
+### SI Plot
+
+```{r}
+safe_plot(quote(model_sifit_plot(bundle$res)), "SI plot unavailable")
+```
+
+# Standard Output
+
+### Time Series
+
+```{r}
+safe_plot(
+  quote(
+    bundle$standard_output |>
+      ggplot(aes(year, median)) +
+      geom_ribbon(
+        aes(ymin = lower, ymax = upper),
+        alpha = 0.2,
+        fill = "steelblue"
+      ) +
+      geom_line(linewidth = 0.5) +
+      facet_wrap(~variable, scales = "free_y") +
+      labs(x = "Year", y = "Estimate")
+  ),
+  "Standard output plot unavailable"
+)
+```
+
+### Wide Table
+
+```{r}
+std_wide <- bundle$standard_output |>
+  select(year, variable, median, lower, upper) |>
+  pivot_wider(
+    names_from = variable,
+    values_from = c(median, lower, upper),
+    names_glue = "{variable}_{.value}"
+  ) |>
+  arrange(year)
+render_table(
+  std_wide,
+  max_rows = 500,
+  label = "Standard output table unavailable"
+)
+```
+
+# Diagnostics
+
+### Likelihood
+
+```{r}
+safe_plot(quote(model_lik_plot(bundle$res)), "Likelihood plot unavailable")
+```
+
+### Selectivity
+
+```{r}
+safe_plot(
+  quote(model_selectivity_plot(bundle$res)),
+  "Selectivity plot unavailable"
+)
+```
+
+### Stock-Recruit
+
+```{r}
+safe_plot(quote(SR_plot(bundle$res)), "Stock-recruit plot unavailable")
+```
+
+# Retro / Leave-Out
+
+### Leave-Out
+
+```{r}
+safe_plot(quote(model_lo_plot(bundle$res)), "Leave-out plot unavailable")
+```
+
+### Retro
+
+```{r}
+safe_plot(quote(model_retro_plot(bundle$res)), "Retro plot unavailable")
+```
+
+# Annotated Parameters
+
+```{r}
+par_tbl <- try(annotated_par_table(bundle$res$fit), silent = TRUE)
+if (inherits(par_tbl, "try-error")) {
+  render_table(
+    data.frame(message = "Annotated parameter table unavailable"),
+    max_rows = 5
+  )
+} else {
+  render_table(par_tbl, max_rows = 1000)
+}
+```

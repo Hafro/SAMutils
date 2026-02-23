@@ -79,7 +79,7 @@ M_mat <- sam.input(
 # p_pres <- model_pres_resid_plot(list(process_res = safe_procres(fit)))
 ```
 
-### 4. Launch dashboard from `full_sam_fit()`
+### 4. Render static dashboard from `full_sam_fit()`
 
 ```r
 library(SAMutils)
@@ -126,8 +126,9 @@ conf$keyLogFpar <- matrix(
 )
 
 sam_fit <- full_sam_fit(dat, conf)
-app <- dashboard_app(sam_fit)
-shiny::runApp(app)
+html_path <- dashboard_app(sam_fit, output_file = "sam-dashboard.html")
+# or: html_path <- render_quarto_dashboard(sam_fit, output_file = "sam-dashboard.html")
+html_path
 ```
 
 ## Main function groups
@@ -136,6 +137,7 @@ shiny::runApp(app)
 - Fitting/comparison: `full_sam_fit()`, `compare_configs()`
 - Output extraction: `rby.sam()`, `rbya.sam()`, `annotated_par_table()`
 - Diagnostics/plots: `model_data_plot()`, `model_lik_plot()`, `model_retro_plot()`, `model_selectivity_plot()`, `model_resid_plot()`
+- Dashboard output: `dashboard_app()`, `render_quarto_dashboard()`
 
 ## Testing
 

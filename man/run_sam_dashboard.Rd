@@ -7,6 +7,8 @@
 run_sam_dashboard(
   model_dir = "testmore/nsher",
   retro_year = 5,
+  output_file = "sam-dashboard.html",
+  output_dir = ".",
   launch.browser = interactive()
 )
 }
@@ -15,10 +17,14 @@ run_sam_dashboard(
 
 \item{retro_year}{Number of retrospective peels.}
 
-\item{launch.browser}{Passed to \code{shiny::runApp()}.}
+\item{output_file}{Output HTML filename.}
+
+\item{output_dir}{Output directory for rendered HTML.}
+
+\item{launch.browser}{If \code{TRUE}, attempts to open the rendered file.}
 }
 \value{
-Invisibly returns the Shiny app run result.
+Path to rendered HTML dashboard.
 }
 \description{
 Run SAM Dashboard

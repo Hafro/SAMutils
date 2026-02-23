@@ -4,15 +4,24 @@
 \alias{sam_dashboard_app}
 \title{Build SAM Dashboard App}
 \usage{
-sam_dashboard_app(model_dir = "testmore/nsher", retro_year = 5)
+sam_dashboard_app(
+  model_dir = "testmore/nsher",
+  retro_year = 5,
+  output_file = "sam-dashboard.html",
+  output_dir = "."
+)
 }
 \arguments{
 \item{model_dir}{Directory containing NSHER inputs.}
 
 \item{retro_year}{Number of retrospective peels.}
+
+\item{output_file}{Output HTML filename.}
+
+\item{output_dir}{Output directory for rendered HTML.}
 }
 \value{
-A Shiny app object.
+Path to rendered HTML dashboard.
 }
 \description{
 Build SAM Dashboard App

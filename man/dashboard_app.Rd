@@ -8,7 +8,9 @@ dashboard_app(
   sam_fit,
   input_tables = NULL,
   model_dat = NULL,
-  title = "SAMutils Dashboard"
+  title = "SAMutils Dashboard",
+  output_file = "sam-dashboard.html",
+  output_dir = "."
 )
 }
 \arguments{
@@ -19,9 +21,13 @@ dashboard_app(
 \item{model_dat}{Optional long data frame with \code{year}, \code{age}, \code{stock_weight}.}
 
 \item{title}{Dashboard title.}
+
+\item{output_file}{Output HTML filename.}
+
+\item{output_dir}{Output directory for rendered HTML.}
 }
 \value{
-A Shiny app object.
+Path to rendered HTML dashboard.
 }
 \description{
 Launch Dashboard from \code{full_sam_fit} Output
