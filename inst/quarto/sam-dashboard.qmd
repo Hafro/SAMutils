@@ -56,7 +56,8 @@ safe_table <- function(x, max_rows = 200L, label = "No data") {
 render_table <- function(x, max_rows = 200L, label = "No data") {
   knitr::kable(
     safe_table(x, max_rows = max_rows, label = label),
-    format = "html"
+    format = "html",
+    table.attr = "class='table table-sm table-striped table-bordered'"
   )
 }
 
@@ -125,6 +126,37 @@ render_conf_panel(bundle$res$fit)
 # Input Data
 
 ## Tables {.tabset}
+
+### Catch at age
+
+```{r}
+render_table(
+  bundle$input_tables[["Catch at age"]],
+  max_rows = 500,
+  label = "Catch at age unavailable"
+)
+```
+
+### Survey at age {.tabset}
+
+```{r}
+#| results: asis
+survey_tabs <- names(bundle$input_tables)[grepl("^Survey at age:", names(bundle$input_tables))]
+if (length(survey_tabs) == 0) {
+  print(render_table(NULL, max_rows = 5, label = "Survey at age unavailable"))
+} else {
+  for (nm in survey_tabs) {
+    tab_title <- sub("^Survey at age:\\s*", "", nm)
+    cat("#### ", tab_title, "\n\n", sep = "")
+    print(render_table(
+      bundle$input_tables[[nm]],
+      max_rows = 500,
+      label = paste0(nm, " unavailable")
+    ))
+    cat("\n")
+  }
+}
+```
 
 ### Stock mean weight
 

@@ -156,11 +156,42 @@ sam_dashboard_prepare <- function(model_dir = "testmore/nsher", retro_year = 5) 
 
 #' Build Input Tables from a Fitted SAM Object
 #'
-#' @param fit A fitted SAM object (`sam_fit$fit` from `full_sam_fit`).
+#' @param sam_fit Output object from `full_sam_fit()`.
 #'
 #' @return A named list of data frames for dashboard input tabs.
 #' @keywords internal
-sam_dashboard_input_tables_from_fit <- function(fit) {
+sam_dashboard_obs_table <- function(sam_fit, fleet_idx) {
+  obs <- sam_fit$res
+  if (is.null(obs) || length(obs$year) == 0 || length(fleet_idx) == 0) {
+    return(NULL)
+  }
+
+  d <- tibble::tibble(
+    year = as.numeric(obs$year),
+    fleet = as.integer(obs$fleet),
+    age = as.numeric(obs$age),
+    observation = as.numeric(obs$observation)
+  ) |>
+    dplyr::filter(
+      fleet %in% fleet_idx,
+      !is.na(year),
+      !is.na(age),
+      !is.na(observation)
+    ) |>
+    dplyr::mutate(value = exp(observation)) |>
+    dplyr::group_by(year, age) |>
+    dplyr::summarise(value = sum(value, na.rm = TRUE), .groups = "drop") |>
+    tidyr::pivot_wider(names_from = age, values_from = value, values_fill = 0) |>
+    dplyr::arrange(year)
+
+  if (nrow(d) == 0) {
+    return(NULL)
+  }
+  as.data.frame(d, stringsAsFactors = FALSE)
+}
+
+sam_dashboard_input_tables_from_fit <- function(sam_fit) {
+  fit <- sam_fit$fit
   dat <- fit$data
   keep <- c(
     "stockMeanWeight", "catchMeanWeight", "natMor", "propMat",
@@ -169,6 +200,28 @@ sam_dashboard_input_tables_from_fit <- function(fit) {
   keep <- keep[keep %in% names(dat)]
   out <- lapply(dat[keep], sam_dashboard_as_table)
   names(out) <- keep
+
+  if (!is.null(fit$data$fleetTypes)) {
+    fleet_names <- attr(sam_fit$res, "fleetNames")
+    if (is.null(fleet_names) || length(fleet_names) < fit$data$noFleets) {
+      fleet_names <- paste0("fleet_", seq_len(fit$data$noFleets))
+    }
+
+    catch_idx <- which(fit$data$fleetTypes == 0)
+    survey_idx <- which(fit$data$fleetTypes != 0)
+
+    if (length(catch_idx) > 0) {
+      out[["Catch at age"]] <- sam_dashboard_obs_table(sam_fit, catch_idx)
+    }
+    if (length(survey_idx) > 0) {
+      for (i in survey_idx) {
+        nm <- fleet_names[i]
+        out[[paste0("Survey at age: ", nm)]] <- sam_dashboard_obs_table(sam_fit, i)
+      }
+    }
+  }
+
+  out <- out[!vapply(out, is.null, logical(1))]
   out
 }
 
@@ -196,7 +249,7 @@ sam_dashboard_bundle <- function(sam_fit, input_tables = NULL, model_dat = NULL)
   }
 
   if (is.null(input_tables)) {
-    input_tables <- sam_dashboard_input_tables_from_fit(sam_fit$fit)
+    input_tables <- sam_dashboard_input_tables_from_fit(sam_fit)
   }
 
   std_out <- rby.sam(sam_fit$fit) |>
