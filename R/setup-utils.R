@@ -68,7 +68,10 @@ sam.input <- function(
 
   if (isTRUE(complete_grid)) {
     d <- d |>
-      dplyr::right_join(tidyr::expand_grid(year = year_range, age = age_range), by = c("year", "age"))
+      dplyr::right_join(
+        tidyr::expand_grid(year = year_range, age = age_range),
+        by = c("year", "age")
+      )
   }
 
   d <- d |>
@@ -84,7 +87,10 @@ sam.input <- function(
     ) |>
     dplyr::arrange(year) |>
     dplyr::ungroup() |>
-    dplyr::full_join(tibble::tibble(year = sort(unique(year_range))), by = 'year') |>
+    dplyr::full_join(
+      tibble::tibble(year = sort(unique(year_range))),
+      by = 'year'
+    ) |>
     dplyr::select(-year) |>
     as.matrix()
 
@@ -256,7 +262,9 @@ compare_configs <- function(
   if (!is.null(conf$keyVarObs) && nrow(conf$keyVarObs) > 0) {
     conf$keyBiomassTreat[nrow(conf$keyVarObs)] <- 4
     conf$keyVarObs[nrow(conf$keyVarObs), 1] <- -1
-    if (!is.null(conf$keyLogFpar) && nrow(conf$keyLogFpar) >= nrow(conf$keyVarObs)) {
+    if (
+      !is.null(conf$keyLogFpar) && nrow(conf$keyLogFpar) >= nrow(conf$keyVarObs)
+    ) {
       conf$keyLogFpar[nrow(conf$keyLogFpar), 1] <- -1
     }
   }
@@ -270,7 +278,12 @@ compare_configs <- function(
   fit <- NULL
   par <- stockassessment::defpar(dat, conf)
   try(
-    fit <- stockassessment::sam.fit(dat, conf, par, control = list(eval.max = eval_max)),
+    fit <- stockassessment::sam.fit(
+      dat,
+      conf,
+      par,
+      control = list(eval.max = eval_max)
+    ),
     silent = TRUE
   )
 
@@ -281,7 +294,10 @@ compare_configs <- function(
     maxsd <- NA_real_
     convrate <- NA_real_
   } else {
-    retros <- try(stockassessment::retro(fit, year = retro_year, ncores = ncores), silent = TRUE)
+    retros <- try(
+      stockassessment::retro(fit, year = retro_year, ncores = ncores),
+      silent = TRUE
+    )
     if (inherits(retros, "try-error") || is.null(retros)) {
       summary_tbl <- tibble::tibble()
     } else {
@@ -299,7 +315,12 @@ compare_configs <- function(
       sim_dat <- stats::simulate(fit, nsim = 100, full.data = TRUE)
       sim_fit <- parallel::mclapply(
         sim_dat,
-        function(z) try(stockassessment::sam.fit(z, fit$conf, fit$obj$env$par), silent = TRUE),
+        function(z) {
+          try(
+            stockassessment::sam.fit(z, fit$conf, fit$obj$env$par),
+            silent = TRUE
+          )
+        },
         mc.cores = ncores
       )
       convrate <- sim_fit |>
@@ -310,7 +331,13 @@ compare_configs <- function(
   }
 
   summary_tbl |>
-    dplyr::mutate(id = x, aic = aic, opt = opt, maxsd = maxsd, convrate = convrate)
+    dplyr::mutate(
+      id = x,
+      aic = aic,
+      opt = opt,
+      maxsd = maxsd,
+      convrate = convrate
+    )
 }
 
 
@@ -323,7 +350,12 @@ input_data_plot <- function(dat) {
   dat |>
     pivot_longer(-c(year, age), names_to = "variable", values_to = "value") |>
     dplyr::mutate(value = ifelse(value == 0, NA_real_, value)) |>
-    ggplot2::ggplot(ggplot2::aes(year, value, col = as.ordered(age), label = age)) +
+    ggplot2::ggplot(ggplot2::aes(
+      year,
+      value,
+      col = as.ordered(age),
+      label = age
+    )) +
     ggplot2::geom_line() +
     ggplot2::geom_text() +
     ggplot2::facet_wrap(~variable, scales = 'free_y') +
@@ -348,7 +380,10 @@ rbya.sam <- function(
   to_year_age <- function(x, value_name) {
     to_num <- function(v) suppressWarnings(as.numeric(as.character(v)))
     x |>
-      as.data.frame.table(stringsAsFactors = FALSE, responseName = value_name) |>
+      as.data.frame.table(
+        stringsAsFactors = FALSE,
+        responseName = value_name
+      ) |>
       dplyr::rename(year = Var1, age = Var2) |>
       dplyr::mutate(year = to_num(year), age = to_num(age)) |>
       tibble::as_tibble()
@@ -363,7 +398,10 @@ rbya.sam <- function(
         as.data.frame.table(stringsAsFactors = FALSE, responseName = 'f')
     ) |>
     dplyr::rename(year = Var1, age = Var2) |>
-    dplyr::mutate(year = suppressWarnings(as.numeric(year)), age = suppressWarnings(as.numeric(age))) |>
+    dplyr::mutate(
+      year = suppressWarnings(as.numeric(year)),
+      age = suppressWarnings(as.numeric(age))
+    ) |>
     tibble::as_tibble()
 
   if (isTRUE(include_stock_data)) {
@@ -371,7 +409,7 @@ rbya.sam <- function(
     join_optional <- function(x, y, value_name) {
       y_tbl <- tryCatch(
         to_year_age(y, value_name),
-        error = function(e) NULL
+        error = function(e) warning(value_name, 'not found')
       )
       if (is.null(y_tbl)) {
         return(x)
@@ -399,7 +437,7 @@ rbya.sam <- function(
         ) |>
         dplyr::filter(!is.na(age)) |>
         tidyr::pivot_wider(names_from = c(par_name, fleet), values_from = est),
-      error = function(e) NULL
+      error = function(e) warning('annontated_par_table failed')
     )
     if (!is.null(par_tbl)) {
       d <- d |>
@@ -454,34 +492,44 @@ rby.sam <- function(
     tryCatch(
       series_fn() |>
         sam_tibble(varname),
-      error = function(e) NULL
+      error = function(e) warning(paste('Series', varname, 'not found'))
     )
   }
 
   out <- list(
     safe_series(
-      function() sam_fit |>
-        stockassessment::ssbtable(),
+      function() {
+        sam_fit |>
+          stockassessment::ssbtable()
+      },
       "ssb"
     ),
     safe_series(
-      function() sam_fit |>
-        stockassessment::tsbtable(),
+      function() {
+        sam_fit |>
+          stockassessment::tsbtable()
+      },
       "tsb"
     ),
     safe_series(
-      function() sam_fit |>
-        stockassessment::fbartable(),
+      function() {
+        sam_fit |>
+          stockassessment::fbartable()
+      },
       "fbar"
     ),
     safe_series(
-      function() sam_fit |>
-        stockassessment::rectable(),
+      function() {
+        sam_fit |>
+          stockassessment::rectable()
+      },
       "rec"
     ),
     safe_series(
-      function() sam_fit |>
-        stockassessment::catchtable(),
+      function() {
+        sam_fit |>
+          stockassessment::catchtable()
+      },
       "catch"
     )
   )
@@ -491,13 +539,17 @@ rby.sam <- function(
       out,
       list(
         safe_series(
-          function() sam_fit |>
-            sam_ref_bio(type = ref_bio_type),
+          function() {
+            sam_fit |>
+              sam_ref_bio(type = ref_bio_type)
+          },
           "ref_bio"
         ),
         safe_series(
-          function() sam_fit |>
-            sam_ref_bio('hr', type = ref_bio_type),
+          function() {
+            sam_fit |>
+              sam_ref_bio('hr', type = ref_bio_type)
+          },
           "hr"
         )
       )
@@ -594,7 +646,14 @@ annotated_par_table <- function(sam_fit) {
       tibble::as_tibble(x) |>
         dplyr::mutate(par_name = rownames(x))
     })() |>
-    stats::setNames(c('log_est', 'log_sd', 'est', 'lower', 'upper', 'par_name')) |>
+    stats::setNames(c(
+      'log_est',
+      'log_sd',
+      'est',
+      'lower',
+      'upper',
+      'par_name'
+    )) |>
     dplyr::left_join(meta_data)
 }
 
@@ -679,7 +738,7 @@ format_sam_pres <- function(res) {
 safe_procres <- function(fit, parallel = FALSE) {
   tryCatch(
     stockassessment::procres(fit, parallel = parallel),
-    error = function(e) NULL
+    error = function(e) warning('procres failed')
   )
 }
 
@@ -697,7 +756,10 @@ sam_resolve_arg <- function(x, name, env = parent.frame()) {
   }
   x <- get0(name, envir = env)
   if (is.null(x)) {
-    stop(sprintf("Missing `%s`. Pass it explicitly or define it in the calling environment.", name))
+    stop(sprintf(
+      "Missing `%s`. Pass it explicitly or define it in the calling environment.",
+      name
+    ))
   }
   x
 }
@@ -746,8 +808,16 @@ sam_build_data <- function(
   prop_mature <- sam_resolve_arg(prop_mature, "mo", env)
   stock_mean_weight <- sam_resolve_arg(stock_mean_weight, "sw", env)
   catch_mean_weight <- sam_resolve_arg(catch_mean_weight, "cw", env)
-  dis_mean_weight <- if (is.null(dis_mean_weight)) catch_mean_weight else dis_mean_weight
-  land_mean_weight <- if (is.null(land_mean_weight)) catch_mean_weight else land_mean_weight
+  dis_mean_weight <- if (is.null(dis_mean_weight)) {
+    catch_mean_weight
+  } else {
+    dis_mean_weight
+  }
+  land_mean_weight <- if (is.null(land_mean_weight)) {
+    catch_mean_weight
+  } else {
+    land_mean_weight
+  }
   prop_f <- sam_resolve_arg(prop_f, "pf", env)
   prop_m <- sam_resolve_arg(prop_m, "pm", env)
   land_frac <- sam_resolve_arg(land_frac, "lf", env)
@@ -847,7 +917,9 @@ profile_M_run <- function(
       dplyr::select(-M) |>
       dplyr::left_join(m_val) |>
       dplyr::left_join(
-        m_val |> dplyr::group_by(age) |> dplyr::summarise(meanM = mean(M, na.rm = TRUE))
+        m_val |>
+          dplyr::group_by(age) |>
+          dplyr::summarise(meanM = mean(M, na.rm = TRUE))
       ) |>
       dplyr::mutate(M = ifelse(is.na(M), meanM, M)) |>
       sam.input("M", age_range = as.numeric(1:maxage), tail_f = mean)
@@ -923,8 +995,16 @@ profile_infect_M_run <- function(
 ) {
   model_dat <- sam_resolve_arg(model_dat, "model_dat")
   maxage <- if (is.null(maxage)) max(model_dat$age, na.rm = TRUE) else maxage
-  infection_years <- if (is.null(infection_years)) sort(unique(model_dat$year)) else infection_years
-  infection_ages <- if (is.null(infection_ages)) sort(unique(model_dat$age)) else infection_ages
+  infection_years <- if (is.null(infection_years)) {
+    sort(unique(model_dat$year))
+  } else {
+    infection_years
+  }
+  infection_ages <- if (is.null(infection_ages)) {
+    sort(unique(model_dat$age))
+  } else {
+    infection_ages
+  }
 
   nm <-
     model_dat |>
@@ -937,7 +1017,10 @@ profile_infect_M_run <- function(
       age = !!rlang::sym(infection_age_col),
       infection = !!rlang::sym(infection_value_col)
     ) |>
-    dplyr::right_join(tidyr::expand_grid(year = infection_years, age = infection_ages)) |>
+    dplyr::right_join(tidyr::expand_grid(
+      year = infection_years,
+      age = infection_ages
+    )) |>
     dplyr::arrange(year, age) |>
     dplyr::mutate(infection = tidyr::replace_na(infection, 0)) |>
     dplyr::ungroup() |>
@@ -977,7 +1060,9 @@ sam_simulate <- function(sam_fit) {
   sim_fit <-
     parallel::mclapply(
       sim_dat,
-      function(x) try(stockassessment::sam.fit(x, sam_fit$conf, sam_fit$obj$env$par)),
+      function(x) {
+        try(stockassessment::sam.fit(x, sam_fit$conf, sam_fit$obj$env$par))
+      },
       mc.cores = 30
     )
   attr(sim_fit, "fit") <- sam_fit
@@ -1019,27 +1104,82 @@ model_data_plot <-
     maturation_cutoff_year = NULL
   ) {
     model_dat <- sam_resolve_arg(model_dat, "model_dat")
-    maturation_cutoff_year <- if (is.null(maturation_cutoff_year)) min(model_dat$year, na.rm = TRUE) else maturation_cutoff_year
+    maturation_cutoff_year <- if (is.null(maturation_cutoff_year)) {
+      min(model_dat$year, na.rm = TRUE)
+    } else {
+      maturation_cutoff_year
+    }
 
     plot_dat <- tibble::tibble(year = sort(unique(model_dat$year)))
 
     if ("smb" %in% names(model_dat)) {
-      plot_dat <- plot_dat |> dplyr::left_join(model_dat |> dplyr::group_by(year) |> dplyr::summarise(`Spring survey` = sum(smb, na.rm = TRUE), .groups = "drop"))
+      plot_dat <- plot_dat |>
+        dplyr::left_join(
+          model_dat |>
+            dplyr::group_by(year) |>
+            dplyr::summarise(
+              `Spring survey` = sum(smb, na.rm = TRUE),
+              .groups = "drop"
+            )
+        )
     }
     if ("smh" %in% names(model_dat)) {
-      plot_dat <- plot_dat |> dplyr::left_join(model_dat |> dplyr::group_by(year) |> dplyr::summarise(`Autumn survey` = sum(smh, na.rm = TRUE), .groups = "drop"))
+      plot_dat <- plot_dat |>
+        dplyr::left_join(
+          model_dat |>
+            dplyr::group_by(year) |>
+            dplyr::summarise(
+              `Autumn survey` = sum(smh, na.rm = TRUE),
+              .groups = "drop"
+            )
+        )
     }
     if ("catch" %in% names(model_dat)) {
-      plot_dat <- plot_dat |> dplyr::left_join(model_dat |> dplyr::group_by(year) |> dplyr::summarise(Catch = sum(catch, na.rm = TRUE), .groups = "drop"))
+      plot_dat <- plot_dat |>
+        dplyr::left_join(
+          model_dat |>
+            dplyr::group_by(year) |>
+            dplyr::summarise(Catch = sum(catch, na.rm = TRUE), .groups = "drop")
+        )
     }
     if ("maturity" %in% names(model_dat)) {
-      plot_dat <- plot_dat |> dplyr::left_join(model_dat |> dplyr::group_by(year) |> dplyr::summarise(Maturity = max(ifelse(year < maturation_cutoff_year, 0, maturity), na.rm = TRUE), .groups = "drop"))
+      plot_dat <- plot_dat |>
+        dplyr::left_join(
+          model_dat |>
+            dplyr::group_by(year) |>
+            dplyr::summarise(
+              Maturity = max(
+                ifelse(year < maturation_cutoff_year, 0, maturity),
+                na.rm = TRUE
+              ),
+              .groups = "drop"
+            )
+        )
     }
     if ("stock_weight" %in% names(model_dat)) {
-      plot_dat <- plot_dat |> dplyr::left_join(model_dat |> dplyr::group_by(year) |> dplyr::summarise(`Stock weight` = max(ifelse(year < maturation_cutoff_year, 0, stock_weight), na.rm = TRUE), .groups = "drop"))
+      plot_dat <- plot_dat |>
+        dplyr::left_join(
+          model_dat |>
+            dplyr::group_by(year) |>
+            dplyr::summarise(
+              `Stock weight` = max(
+                ifelse(year < maturation_cutoff_year, 0, stock_weight),
+                na.rm = TRUE
+              ),
+              .groups = "drop"
+            )
+        )
     }
     if ("catch_weight" %in% names(model_dat)) {
-      plot_dat <- plot_dat |> dplyr::left_join(model_dat |> dplyr::group_by(year) |> dplyr::summarise(`Catch weight` = max(catch_weight, na.rm = TRUE), .groups = "drop"))
+      plot_dat <- plot_dat |>
+        dplyr::left_join(
+          model_dat |>
+            dplyr::group_by(year) |>
+            dplyr::summarise(
+              `Catch weight` = max(catch_weight, na.rm = TRUE),
+              .groups = "drop"
+            )
+        )
     }
 
     plot_dat |>
@@ -1070,26 +1210,52 @@ model_ices_plot <-
     observed_catch_start_year = NULL,
     observed_catch_end_year = NULL
   ) {
-    observed_catch_start_year <- if (is.null(observed_catch_start_year)) min(model_dat$year, na.rm = TRUE) else observed_catch_start_year
-    observed_catch_end_year <- if (is.null(observed_catch_end_year)) max(model_dat$year, na.rm = TRUE) else observed_catch_end_year
+    observed_catch_start_year <- if (is.null(observed_catch_start_year)) {
+      min(model_dat$year, na.rm = TRUE)
+    } else {
+      observed_catch_start_year
+    }
+    observed_catch_end_year <- if (is.null(observed_catch_end_year)) {
+      max(model_dat$year, na.rm = TRUE)
+    } else {
+      observed_catch_end_year
+    }
 
     p <- res$fit |>
       rby.sam() |>
-      dplyr::filter(variable != "tsb", !(variable %in% c("fbar", "catch", "hr") & year == max(year))) |>
+      dplyr::filter(
+        variable != "tsb",
+        !(variable %in% c("fbar", "catch", "hr") & year == max(year))
+      ) |>
       ggplot2::ggplot(ggplot2::aes(year, median)) +
-      ggplot2::geom_ribbon(ggplot2::aes(ymin = lower, ymax = upper), alpha = 0.2, col = "white", fill = "blue") +
+      ggplot2::geom_ribbon(
+        ggplot2::aes(ymin = lower, ymax = upper),
+        alpha = 0.2,
+        col = "white",
+        fill = "blue"
+      ) +
       ggplot2::geom_line() +
       ggplot2::facet_wrap(~variable, scales = "free_y") +
       ggplot2::labs(x = "Year", y = "", col = "") +
       ggplot2::expand_limits(y = 0)
 
-    if (isTRUE(observed_catch) && all(c("catch", "catch_weight") %in% names(model_dat))) {
+    if (
+      isTRUE(observed_catch) &&
+        all(c("catch", "catch_weight") %in% names(model_dat))
+    ) {
       p <- p +
         ggplot2::geom_point(
           data = model_dat |>
-            dplyr::filter(year >= observed_catch_start_year, year <= observed_catch_end_year) |>
+            dplyr::filter(
+              year >= observed_catch_start_year,
+              year <= observed_catch_end_year
+            ) |>
             dplyr::group_by(year) |>
-            dplyr::summarise(median = sum(catch * catch_weight, na.rm = TRUE) / 1e3, variable = "catch", .groups = "drop")
+            dplyr::summarise(
+              median = sum(catch * catch_weight, na.rm = TRUE) / 1e3,
+              variable = "catch",
+              .groups = "drop"
+            )
         )
     }
 
@@ -1191,7 +1357,12 @@ model_resid_plot <-
   function(res) {
     res$res |>
       format_sam_res() |>
-      ggplot2::ggplot(ggplot2::aes(year, age, size = residual, col = as.factor(sign(residual)))) +
+      ggplot2::ggplot(ggplot2::aes(
+        year,
+        age,
+        size = residual,
+        col = as.factor(sign(residual))
+      )) +
       ggplot2::geom_point(pch = 20) +
       ggplot2::facet_wrap(~fleet, ncol = 1) +
       ggplot2::scale_size_area(max_size = 10) +
@@ -1209,13 +1380,23 @@ model_pres_resid_plot <-
     if (is.null(res$process_res) || inherits(res$process_res, "try-error")) {
       return(
         ggplot2::ggplot() +
-          ggplot2::annotate("text", x = 0, y = 0, label = "Process residuals unavailable") +
+          ggplot2::annotate(
+            "text",
+            x = 0,
+            y = 0,
+            label = "Process residuals unavailable"
+          ) +
           ggplot2::theme_void()
       )
     }
     res$process_res |>
       format_sam_pres() |>
-      ggplot2::ggplot(ggplot2::aes(year, age, size = residual, col = as.factor(sign(residual)))) +
+      ggplot2::ggplot(ggplot2::aes(
+        year,
+        age,
+        size = residual,
+        col = as.factor(sign(residual))
+      )) +
       ggplot2::geom_point(pch = 20) +
       ggplot2::facet_wrap(~fleet, ncol = 1) +
       ggplot2::scale_size_area(max_size = 10) +
@@ -1248,17 +1429,33 @@ model_combfit <-
     max_age = 12,
     colors = NULL
   ) {
-    min_year <- if (is.null(min_year)) min(model_dat$year, na.rm = TRUE) else min_year
+    min_year <- if (is.null(min_year)) {
+      min(model_dat$year, na.rm = TRUE)
+    } else {
+      min_year
+    }
     if (is.null(colors)) {
       colors <- scales::hue_pal()(length(unique(format_sam_res(res$res)$fleet)))
     }
 
     res$res |>
       format_sam_res() |>
-      dplyr::filter(year > min_year, residual != 0, !(fleet %in% excluded_fleets)) |>
+      dplyr::filter(
+        year > min_year,
+        residual != 0,
+        !(fleet %in% excluded_fleets)
+      ) |>
       dplyr::mutate(
-        age = ifelse(fleet == reference_fleet, age, pmin(max_age, age + age_shift_other_fleets)),
-        year = ifelse(fleet == reference_fleet, year, year + year_shift_other_fleets)
+        age = ifelse(
+          fleet == reference_fleet,
+          age,
+          pmin(max_age, age + age_shift_other_fleets)
+        ),
+        year = ifelse(
+          fleet == reference_fleet,
+          year,
+          year + year_shift_other_fleets
+        )
       ) |>
       dplyr::left_join(
         model_dat |>
@@ -1274,7 +1471,10 @@ model_combfit <-
       ggplot2::geom_line(ggplot2::aes(y = pred)) +
       ggplot2::scale_colour_manual(values = colors) +
       ggplot2::labs(col = '', y = 'Survey index', x = 'Year') +
-      ggplot2::theme(legend.position = c(0.2, 0.8), legend.background = ggplot2::element_blank())
+      ggplot2::theme(
+        legend.position = c(0.2, 0.8),
+        legend.background = ggplot2::element_blank()
+      )
   }
 
 #' Plot Survey Index Fits by Fleet and Age
@@ -1308,7 +1508,13 @@ model_lik_plot <-
       cor_fit
     }
 
-    safe_param_plot <- function(dat, y_lab = "", x_lab = "Age", expand_zero = FALSE, empty_lab = "No data") {
+    safe_param_plot <- function(
+      dat,
+      y_lab = "",
+      x_lab = "Age",
+      expand_zero = FALSE,
+      empty_lab = "No data"
+    ) {
       if (nrow(dat) == 0) {
         return(
           ggplot2::ggplot() +
@@ -1332,17 +1538,29 @@ model_lik_plot <-
     d1 <- annotated_par_table(cor_fit) |>
       dplyr::filter(grepl('transfIRARdist', par_name)) |>
       dplyr::mutate(age = gsub('(.+)-.+', '\\1', age) |> as.numeric())
-    p1 <- safe_param_plot(d1, y_lab = 'Estimated correlation', empty_lab = "No correlation parameters")
+    p1 <- safe_param_plot(
+      d1,
+      y_lab = 'Estimated correlation',
+      empty_lab = "No correlation parameters"
+    )
 
     d2 <- annotated_par_table(res$fit) |>
       dplyr::filter(grepl('SdLogObs', par_name)) |>
       dplyr::mutate(age = gsub('(.+)-.+', '\\1', age) |> as.numeric())
-    p2 <- safe_param_plot(d2, y_lab = 'Estimated predvar link alpha', empty_lab = "No SdLogObs parameters")
+    p2 <- safe_param_plot(
+      d2,
+      y_lab = 'Estimated predvar link alpha',
+      empty_lab = "No SdLogObs parameters"
+    )
 
     d3 <- annotated_par_table(res$fit) |>
       dplyr::filter(grepl('predVar', par_name)) |>
       dplyr::mutate(age = gsub('(.+)-.+', '\\1', age) |> as.numeric())
-    p3 <- safe_param_plot(d3, y_lab = 'Estimated predvar link alpha', empty_lab = "No predVar parameters")
+    p3 <- safe_param_plot(
+      d3,
+      y_lab = 'Estimated predvar link alpha',
+      empty_lab = "No predVar parameters"
+    )
 
     d4 <- annotated_par_table(res$fit) |>
       dplyr::filter(grepl('LogN|Fsta_', par_name)) |>
@@ -1375,7 +1593,11 @@ sam_default_fleet_label <- function(fleet, labels = NULL) {
   if (!is.null(labels)) {
     return(dplyr::recode(fleet, !!!labels, .default = fleet))
   }
-  ifelse(grepl("2", fleet), "Spring survey (fleet 2)", "Autumn survey (fleet 1)")
+  ifelse(
+    grepl("2", fleet),
+    "Spring survey (fleet 2)",
+    "Autumn survey (fleet 1)"
+  )
 }
 
 #' Plot Selectivity Diagnostics and Stock-Recruit Relationship
@@ -1433,13 +1655,19 @@ model_selectivity_SR_plot <-
       dplyr::arrange(year) |>
       ggplot2::ggplot(ggplot2::aes(median_ssb, median_rec)) +
       ggplot2::geom_path(col = 'gray') +
-      ggplot2::geom_errorbarh(ggplot2::aes(xmin = lower_ssb, xmax = upper_ssb)) +
+      ggplot2::geom_errorbarh(ggplot2::aes(
+        xmin = lower_ssb,
+        xmax = upper_ssb
+      )) +
       ggplot2::geom_errorbar(ggplot2::aes(ymin = lower_rec, ymax = upper_rec)) +
       ggplot2::geom_text(ggplot2::aes(label = year), col = 'red') +
       ggplot2::labs(y = 'Recruitment', y = 'SSB')
 
     patchwork::wrap_plots(
-      A = p1, B = p2, C = p3, D = p4,
+      A = p1,
+      B = p2,
+      C = p3,
+      D = p4,
       design = "AB
 CC
 DD"
@@ -1491,7 +1719,9 @@ model_selectivity_plot <-
       ggplot2::labs(y = 'Survey catchability', x = 'Age')
 
     patchwork::wrap_plots(
-      A = p1, B = p2, C = p3,
+      A = p1,
+      B = p2,
+      C = p3,
       design = "AB
 CC"
     )
@@ -1507,7 +1737,9 @@ SR_plot <- function(res, ssb_year_offset = 1) {
   res$fit |>
     rby.sam() |>
     dplyr::filter(variable %in% c('ssb', 'rec')) |>
-    dplyr::mutate(year = ifelse(variable == 'ssb', year + ssb_year_offset, year)) |>
+    dplyr::mutate(
+      year = ifelse(variable == 'ssb', year + ssb_year_offset, year)
+    ) |>
     tidyr::pivot_wider(
       names_from = 'variable',
       values_from = c(median, lower, upper)
