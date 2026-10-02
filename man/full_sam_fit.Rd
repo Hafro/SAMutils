@@ -4,16 +4,51 @@
 \alias{full_sam_fit}
 \title{Run Full SAM Diagnostics Bundle}
 \usage{
-full_sam_fit(dat, conf)
+full_sam_fit(
+  dat,
+  conf,
+  retro_year = 5,
+  leaveout_fleet = NULL,
+  starts = list(default = function(p) p),
+  max_gradient = 1e-04
+)
 }
 \arguments{
 \item{dat}{SAM data object.}
 
 \item{conf}{SAM configuration list.}
+
+\item{retro_year}{Passed to \code{stockassessment::retro()} as \code{year}:
+the number of peels (default 5), or a matrix with one row per peel and
+one column per fleet giving the last year kept, for fleets whose data
+end in different years.}
+
+\item{leaveout_fleet}{Passed to \code{stockassessment::leaveout()} as
+\code{fleet}, e.g. \code{as.list(2:3)}. Default \code{NULL}, the
+\code{leaveout()} default (each fleet but the first).}
+
+\item{starts}{Named list of functions, each taking and returning SAM
+starting values (from \code{stockassessment::defpar()}). They are tried
+in order and the first fit that converges (convergence code 0, largest
+gradient below \code{max_gradient}) is kept. Default the default
+starting values only.}
+
+\item{max_gradient}{Largest absolute gradient of a converged fit. Default
+\code{1e-4}.}
 }
 \value{
-A list with fitted model, residuals, retrospectives, and leave-out runs.
+A list with the starting values used (\code{par}), the name of the
+start used (\code{start}), the fitted model, residuals, retrospectives,
+and leave-out runs.
 }
 \description{
-Run Full SAM Diagnostics Bundle
+Fits SAM and runs the one-step-ahead and process residuals, a
+retrospective and a leave-one-out analysis.
+}
+\details{
+\code{residuals()}, \code{retro()} and \code{leaveout()} write the
+configuration to text and read it back, and \code{saveConf()} wraps wide
+rows (e.g. 20 ages) at the console width, after which they fail with
+"vector size cannot be infinite". The console width is set wide while
+they run.
 }

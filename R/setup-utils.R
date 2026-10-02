@@ -839,21 +839,75 @@ sam_build_data <- function(
 
 #' Run Full SAM Diagnostics Bundle
 #'
+#' Fits SAM and runs the one-step-ahead and process residuals, a
+#' retrospective and a leave-one-out analysis.
+#'
 #' @param dat SAM data object.
 #' @param conf SAM configuration list.
+#' @param retro_year Passed to \code{stockassessment::retro()} as \code{year}:
+#'   the number of peels (default 5), or a matrix with one row per peel and
+#'   one column per fleet giving the last year kept, for fleets whose data
+#'   end in different years.
+#' @param leaveout_fleet Passed to \code{stockassessment::leaveout()} as
+#'   \code{fleet}, e.g. \code{as.list(2:3)}. Default \code{NULL}, the
+#'   \code{leaveout()} default (each fleet but the first).
+#' @param starts Named list of functions, each taking and returning SAM
+#'   starting values (from \code{stockassessment::defpar()}). They are tried
+#'   in order and the first fit that converges (convergence code 0, largest
+#'   gradient below \code{max_gradient}) is kept. Default the default
+#'   starting values only.
+#' @param max_gradient Largest absolute gradient of a converged fit. Default
+#'   \code{1e-4}.
 #'
-#' @return A list with fitted model, residuals, retrospectives, and leave-out runs.
-full_sam_fit <- function(dat, conf) {
-  par <- stockassessment::defpar(dat, conf)
-  ## Fit a model with SAM
-  fit <- stockassessment::sam.fit(dat, conf, par)
+#' @details \code{residuals()}, \code{retro()} and \code{leaveout()} write the
+#'   configuration to text and read it back, and \code{saveConf()} wraps wide
+#'   rows (e.g. 20 ages) at the console width, after which they fail with
+#'   "vector size cannot be infinite". The console width is set wide while
+#'   they run.
+#'
+#' @return A list with the starting values used (\code{par}), the name of the
+#'   start used (\code{start}), the fitted model, residuals, retrospectives,
+#'   and leave-out runs.
+full_sam_fit <- function(
+  dat,
+  conf,
+  retro_year = 5,
+  leaveout_fleet = NULL,
+  starts = list(default = function(p) p),
+  max_gradient = 1e-4
+) {
+  old_options <- options(width = 10000)
+  on.exit(options(old_options), add = TRUE)
+
+  par0 <- stockassessment::defpar(dat, conf)
+  fit <- NULL
+  for (start in names(starts)) {
+    par <- starts[[start]](par0)
+    ## Fit a model with SAM
+    f <- try(stockassessment::sam.fit(dat, conf, par))
+    converged <- !inherits(f, "try-error") &&
+      f$opt$convergence == 0 &&
+      max(abs(f$sdrep$gradient.fixed)) < max_gradient
+    if (converged || length(starts) == 1) {
+      fit <- f
+      break
+    }
+  }
+  if (is.null(fit) || inherits(fit, "try-error")) {
+    stop("SAM did not converge from any of the starting values")
+  }
   res <- try(stats::residuals(fit, parallel = FALSE))
   process_res <- safe_procres(fit, parallel = FALSE)
-  retro <- try(stockassessment::retro(fit, year = 5, ncores = 1))
-  lo <- try(stockassessment::leaveout(fit, ncores = 1))
+  retro <- try(stockassessment::retro(fit, year = retro_year, ncores = 1))
+  lo <- if (is.null(leaveout_fleet)) {
+    try(stockassessment::leaveout(fit, ncores = 1))
+  } else {
+    try(stockassessment::leaveout(fit, fleet = leaveout_fleet, ncores = 1))
+  }
   #sim_sam <- simstudy(fit)
   return(list(
     par = par,
+    start = start,
     fit = fit,
     res = res,
     process_res = process_res,
