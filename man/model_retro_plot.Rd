@@ -4,10 +4,13 @@
 \alias{model_retro_plot}
 \title{Plot Retrospective Runs with Mohn's Rho}
 \usage{
-model_retro_plot(res)
+model_retro_plot(res, ref_bio_type = "length")
 }
 \arguments{
 \item{res}{Result list with \verb{$fit} and \verb{$retro}.}
+
+\item{ref_bio_type}{Reference biomass type passed to \code{\link[=rby.sam]{rby.sam()}}
+(\code{"length"}, default, or \code{"age"}).}
 }
 \value{
 A ggplot object.

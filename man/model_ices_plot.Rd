@@ -9,7 +9,8 @@ model_ices_plot(
   model_dat,
   observed_catch = TRUE,
   observed_catch_start_year = NULL,
-  observed_catch_end_year = NULL
+  observed_catch_end_year = NULL,
+  ref_bio_type = "length"
 )
 }
 \arguments{
@@ -22,6 +23,9 @@ model_ices_plot(
 \item{observed_catch_start_year}{First year for observed catch overlay.}
 
 \item{observed_catch_end_year}{Last year for observed catch overlay.}
+
+\item{ref_bio_type}{Reference biomass type passed to \code{\link[=rby.sam]{rby.sam()}}
+(\code{"length"}, default, or \code{"age"}).}
 }
 \value{
 A ggplot object.

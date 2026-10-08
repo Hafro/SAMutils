@@ -242,3 +242,21 @@ test_that("model_pres_resid_plot is resilient with missing process residuals", {
   p2 <- model_pres_resid_plot(list(process_res = process_res))
   expect_s3_class(p2, "ggplot")
 })
+
+test_that("sam.input keeps rows and years together when a year has no data", {
+  dat <- tibble::tibble(
+    year = c(2000, 2000, 2001, 2001, 2002, 2002),
+    age = c(1, 2, 1, 2, 1, 2),
+    smb = c(NA, NA, 10, 20, 30, 40)
+  )
+  m <- sam.input(dat, "smb", age_range = 1:2, year_range = 2000:2002)
+  expect_equal(rownames(m), c("2000", "2001", "2002"))
+  expect_equal(unname(m["2001", ]), c(10, 20))
+  expect_equal(unname(m["2002", ]), c(30, 40))
+  expect_true(all(is.na(m["2000", ])))
+})
+
+test_that("input_data_plot works without tidyr attached", {
+  dat <- tibble::tibble(year = c(2000, 2001), age = 1, catch = c(1, 2))
+  expect_s3_class(input_data_plot(dat), "ggplot")
+})

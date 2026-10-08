@@ -91,10 +91,16 @@ sam.input <- function(
       tibble::tibble(year = sort(unique(year_range))),
       by = 'year'
     ) |>
+    # NB: full_join() adds years without data (e.g. an empty first year) at
+    #     the end; sort again so the row names below match
+    dplyr::filter(year %in% year_range) |>
+    dplyr::arrange(year)
+  years <- d$year
+  d <- d |>
     dplyr::select(-year) |>
     as.matrix()
 
-  rownames(d) <- sort(unique(year_range))
+  rownames(d) <- years
 
   attributes(d)$time <- time_window
   d
@@ -348,7 +354,11 @@ compare_configs <- function(
 #' @return A ggplot object.
 input_data_plot <- function(dat) {
   dat |>
-    pivot_longer(-c(year, age), names_to = "variable", values_to = "value") |>
+    tidyr::pivot_longer(
+      -c(year, age),
+      names_to = "variable",
+      values_to = "value"
+    ) |>
     dplyr::mutate(value = ifelse(value == 0, NA_real_, value)) |>
     ggplot2::ggplot(ggplot2::aes(
       year,
@@ -1254,6 +1264,8 @@ model_data_plot <-
 #' @param observed_catch Whether to add observed catch points.
 #' @param observed_catch_start_year First year for observed catch overlay.
 #' @param observed_catch_end_year Last year for observed catch overlay.
+#' @param ref_bio_type Reference biomass type passed to [rby.sam()]
+#'   (`"length"`, default, or `"age"`).
 #'
 #' @return A ggplot object.
 model_ices_plot <-
@@ -1262,7 +1274,8 @@ model_ices_plot <-
     model_dat,
     observed_catch = TRUE,
     observed_catch_start_year = NULL,
-    observed_catch_end_year = NULL
+    observed_catch_end_year = NULL,
+    ref_bio_type = "length"
   ) {
     observed_catch_start_year <- if (is.null(observed_catch_start_year)) {
       min(model_dat$year, na.rm = TRUE)
@@ -1276,7 +1289,7 @@ model_ices_plot <-
     }
 
     p <- res$fit |>
-      rby.sam() |>
+      rby.sam(ref_bio_type = ref_bio_type) |>
       dplyr::filter(
         variable != "tsb",
         !(variable %in% c("fbar", "catch", "hr") & year == max(year))
@@ -1319,19 +1332,21 @@ model_ices_plot <-
 #' Plot Retrospective Runs with Mohn's Rho
 #'
 #' @param res Result list with `$fit` and `$retro`.
+#' @param ref_bio_type Reference biomass type passed to [rby.sam()]
+#'   (`"length"`, default, or `"age"`).
 #'
 #' @return A ggplot object.
 model_retro_plot <-
-  function(res) {
+  function(res, ref_bio_type = "length") {
     res$retro |>
-      purrr::map(rby.sam) |>
+      purrr::map(rby.sam, ref_bio_type = ref_bio_type) |>
       dplyr::bind_rows(.id = 'peel') |>
       dplyr::mutate(
         upper = NA_real_,
         lower = NA_real_
       ) |>
       dplyr::bind_rows(
-        rby.sam(res$fit) |>
+        rby.sam(res$fit, ref_bio_type = ref_bio_type) |>
           dplyr::mutate(peel = '0')
       ) |>
       dplyr::mutate(
