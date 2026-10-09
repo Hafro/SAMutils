@@ -22,8 +22,7 @@ Imports:
     scales,
     stockassessment,
     tibble,
-    tidyr,
-    tidypax
+    tidyr
 Suggests:
     knitr,
     rmarkdown,

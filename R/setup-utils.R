@@ -370,7 +370,7 @@ input_data_plot <- function(dat) {
     ggplot2::geom_text() +
     ggplot2::facet_wrap(~variable, scales = 'free_y') +
     ggplot2::theme(legend.position = 'none') +
-    tidypax::scale_col_crayola()
+    scale_col_crayola()
 }
 
 #' Extract Results by Year and Age
@@ -1596,7 +1596,7 @@ model_lik_plot <-
         ggplot2::ggplot(ggplot2::aes(age, est)) +
         ggplot2::geom_errorbar(ggplot2::aes(ymin = lower, ymax = upper)) +
         ggplot2::facet_wrap(~fleet) +
-        tidypax::scale_col_crayola() +
+        scale_col_crayola() +
         ggplot2::labs(y = y_lab, x = x_lab)
       if (isTRUE(expand_zero)) {
         p <- p + ggplot2::expand_limits(y = 0)
@@ -1710,7 +1710,7 @@ model_selectivity_SR_plot <-
       ggplot2::ggplot(ggplot2::aes(age, est)) +
       ggplot2::geom_errorbar(ggplot2::aes(ymin = lower, ymax = upper)) +
       ggplot2::facet_wrap(~fleet) +
-      tidypax::scale_col_crayola() +
+      scale_col_crayola() +
       ggplot2::labs(y = 'Survey catchability', x = 'Age')
 
     p4 <- res$fit |>
@@ -1784,7 +1784,7 @@ model_selectivity_plot <-
       ggplot2::ggplot(ggplot2::aes(age, est)) +
       ggplot2::geom_errorbar(ggplot2::aes(ymin = lower, ymax = upper)) +
       ggplot2::facet_wrap(~fleet) +
-      tidypax::scale_col_crayola() +
+      scale_col_crayola() +
       ggplot2::labs(y = 'Survey catchability', x = 'Age')
 
     patchwork::wrap_plots(
@@ -1820,4 +1820,16 @@ SR_plot <- function(res, ssb_year_offset = 1) {
     ggplot2::geom_errorbar(ggplot2::aes(ymin = lower_rec, ymax = upper_rec)) +
     ggplot2::geom_text(ggplot2::aes(label = year), col = 'red') +
     ggplot2::labs(y = 'Recruitment', y = 'SSB')
+}
+
+# Colour scale of the input data plots: the 12 colours of
+# RColorBrewer::brewer.pal(12, "Paired"), recycled. Copied from
+# scale_col_crayola() so that SAMutils doesn't depend on tidypax,
+# which isn't installable outside MFRI
+scale_col_crayola <- function(n = 100, ...) {
+  pal <- c(
+    "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99", "#E31A1C",
+    "#FDBF6F", "#FF7F00", "#CAB2D6", "#6A3D9A", "#FFFF99", "#B15928"
+  )
+  ggplot2::scale_color_manual(values = rep(pal, n), ...)
 }
